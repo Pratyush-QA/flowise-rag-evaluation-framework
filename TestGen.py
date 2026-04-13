@@ -7,8 +7,9 @@ from datetime import datetime
 nltk.download('punkt', quiet=True)
 nltk.download('averaged_perceptron_tagger', quiet=True)
 
+import glob as glob_module
 from dotenv import load_dotenv
-from langchain_community.document_loaders import DirectoryLoader
+from langchain_community.document_loaders import TextLoader
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
@@ -49,8 +50,10 @@ def test_data_creation():
     embeddings_openai = OpenAIEmbeddings()
     ragas_embeddings = LangchainEmbeddingsWrapper(embeddings_openai)
 
-    loader = DirectoryLoader(docs_path, glob="**/*.md")
-    docs = loader.load()
+    md_files = glob_module.glob(os.path.join(docs_path, "**/*.md"), recursive=True)
+    docs = []
+    for fpath in md_files:
+        docs.extend(TextLoader(fpath, encoding="utf-8").load())
 
     print(f"\nLoaded {len(docs)} document(s) from {docs_path}")
 

@@ -20,6 +20,8 @@ reports/multi_metrics_*.json
 reports/testset_*.csv
 reports/testset_*.json
 
-# Sample report committed for reference
+# Sample reports committed for reference
 !reports/sample_multi_metrics.csv
 !reports/sample_multi_metrics.json
+!reports/sample_testset.csv
+!reports/sample_testset.json
