@@ -14,6 +14,12 @@ venv/
 .idea/
 .vscode/
 
-# Reports — kept local, not committed to GitHub
-reports/*.csv
-reports/*.json
+# Reports — timestamped runs kept local
+reports/multi_metrics_*.csv
+reports/multi_metrics_*.json
+reports/testset_*.csv
+reports/testset_*.json
+
+# Sample report committed for reference
+!reports/sample_multi_metrics.csv
+!reports/sample_multi_metrics.json

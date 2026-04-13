@@ -31,6 +31,7 @@ load_dotenv()
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
 
 
+@pytest.mark.datagen
 @pytest.mark.ragas
 def test_data_creation():
     base_dir = os.path.dirname(__file__)

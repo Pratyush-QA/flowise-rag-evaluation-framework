@@ -1,6 +1,8 @@
 import pytest
 from ragas import SingleTurnSample
 from ragas.metrics import ResponseRelevancy
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from langchain_openai import OpenAIEmbeddings
 from flowise_client import query_flowise
 
 # -------------------------------------------------------------------
@@ -25,7 +27,8 @@ TEST_QUERIES = [
 @pytest.mark.flowise
 @pytest.mark.ragas
 async def test_response_relevancy(llm_wrapper, flowise_chatflow_id):
-    response_relevancy = ResponseRelevancy(llm=llm_wrapper)
+    embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings())
+    response_relevancy = ResponseRelevancy(llm=llm_wrapper, embeddings=embeddings)
 
     for query in TEST_QUERIES:
         # Real Flowise RAG API call

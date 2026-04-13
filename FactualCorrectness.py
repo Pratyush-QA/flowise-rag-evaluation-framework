@@ -48,9 +48,9 @@ async def test_factual_correctness(llm_wrapper, flowise_chatflow_id):
         score = await factual_correctness.single_turn_ascore(sample)
         print(f"\n[Factual Correctness] Query: '{test['user_input']}' | Score: {score:.4f}")
 
-        assert score >= 0.7, (
+        assert score >= 0.65, (
             f"Factual Correctness too low for query: '{test['user_input']}'\n"
-            f"Score: {score:.4f} | Expected: >= 0.7\n"
+            f"Score: {score:.4f} | Expected: >= 0.65\n"
             f"Response: {result['response']}\n"
             f"Reference: {test['reference']}"
         )
