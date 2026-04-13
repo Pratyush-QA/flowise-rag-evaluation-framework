@@ -200,6 +200,92 @@ A RAG system can fail at any of these layers. You need metrics for each layer.
 
 ---
 
+### "LLM responses are non-deterministic. How do you prevent flaky tests?"
+
+This is the hardest challenge in AI testing and something I thought about deliberately.
+
+Three strategies I use:
+
+1. **`temperature=0`**: Setting the LLM to temperature 0 makes it as deterministic as possible — same input reliably produces the same output. This alone removes most variance.
+
+2. **Threshold-based assertions, not exact match**: I never assert `response == expected`. I assert `score >= 0.7`. A threshold absorbs the natural variation in LLM phrasing while still catching genuine quality regressions. Same pattern as performance testing — you assert `p95 latency < 500ms`, not exact milliseconds.
+
+3. **Regression detection over single-run pass/fail**: In a real CI setup, I'd track scores over time in a database. A test "fails" not when it drops below the threshold once, but when the score consistently trends downward across multiple runs. A single dip from 0.85 to 0.74 is noise; a sustained drop from 0.85 → 0.78 → 0.71 is a real regression.
+
+If a test is genuinely flaky (intermittent), I'd mark it with `@pytest.mark.flaky(reruns=2)` using `pytest-rerunfailures`, investigate root cause (retrieval inconsistency? prompt change?), and fix before re-enabling it in CI.
+
+---
+
+### "How much does running this test suite cost? How do you manage API costs in CI?"
+
+Every RAGAS metric test makes OpenAI API calls — one to Flowise (for the RAG response) and several internally by RAGAS (for LLM-as-judge scoring). Rough estimates for GPT-4o:
+
+- Single metric test on one query: ~$0.01–0.03
+- Full suite (7 metrics × 3–5 queries each): ~$0.50–$1.50 per run
+- TestGen (generating 10 synthetic Q&A pairs): ~$0.10–0.20
+
+**How I manage it in CI:**
+
+```yaml
+# Only run RAGAS tests on PR to main — not on every commit
+on:
+  pull_request:
+    branches: [main]
+```
+
+```bash
+# Use markers to separate cheap unit tests from expensive RAGAS tests
+pytest -m "not ragas"   # Fast CI on every push
+pytest -m ragas         # Full evaluation only on PR to main
+```
+
+For cost reduction at scale: use `gpt-4o-mini` as the RAGAS judge (separate from the tested pipeline) — it's 15x cheaper with minimal quality loss for scoring tasks.
+
+---
+
+### "Walk me through the AI testing pyramid for a RAG system."
+
+Traditional test pyramid (unit → integration → E2E) applies to RAG but each layer tests something different:
+
+```
+             ┌─────────────────────────┐
+             │   E2E / User Journey    │  ← Full chat UI + RAG + response quality
+             ├─────────────────────────┤
+             │  Integration (this fw)  │  ← Full pipeline: retrieval + generation + RAGAS scoring
+             ├─────────────────────────┤
+             │   Component             │  ← Test retrieval alone: does ChromaDB return right chunks?
+             │                         │     Test LLM alone: given this context, is answer correct?
+             ├─────────────────────────┤
+             │   Unit                  │  ← Text splitter: correct chunk sizes?
+             │                         │     Embedding: correct vector dimensions?
+             │                         │     flowise_client.py: correct JSON parsing?
+             └─────────────────────────┘
+```
+
+This framework sits at the **Integration layer** — testing the full RAG pipeline end-to-end via the Flowise API. The advantage: it catches cross-layer failures (e.g., embeddings fine, but retrieval returns wrong chunks due to a ChromaDB collection mismatch).
+
+In a mature AI product, I'd build all four layers. The integration tests (RAGAS) are the most valuable but also the most expensive — so they sit higher in the pyramid and run less frequently.
+
+---
+
+### "What makes this Senior SDET work vs what a junior would do?"
+
+A junior would write tests. What makes this senior:
+
+**1. Evaluation strategy, not just test cases**
+I designed *which* metrics to use and *why*. Faithfulness threshold is stricter (0.8) because hallucinations are P1 defects. Context metrics (0.7) are more lenient because incomplete retrieval is recoverable — the LLM can still give a partial answer. These are deliberate, reasoned decisions.
+
+**2. Test design that separates concerns**
+I separated retrieval quality metrics (Context Precision, Context Recall) from generation quality metrics (Faithfulness, Factual Correctness, Response Relevancy). This matters for debugging — if faithfulness drops but context precision is high, the problem is the LLM, not the retrieval. If both drop, the problem is the vector DB or embeddings.
+
+**3. Infrastructure thinking**
+No hardcoded keys, shared fixtures via conftest.py, environment-based configuration, markers for test selection in CI, local reports instead of broken SaaS dependency. This is test infrastructure built to be maintained by a team, not a one-off script.
+
+**4. Owning the full vertical**
+I set up the RAG pipeline itself (Flowise, ChromaDB, embeddings), not just wrote tests against an existing system. Understanding how the system is built makes me a better tester — I know where the failure modes are before I write a single assertion.
+
+---
+
 ## Tech Stack Summary Card
 
 | Layer | Technology | Why |
